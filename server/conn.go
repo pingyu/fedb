@@ -10,11 +10,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"fedb/terror"
-
 	goctx "github.com/golang/net/context"
 	"github.com/juju/errors"
 	log "github.com/sirupsen/logrus"
+
+	"fedb/terror"
+	"fedb/util/arena"
 )
 
 const (
@@ -29,8 +30,8 @@ func newClientConn(s *Server) *clientConn {
 		server:       s,
 		connectionID: atomic.AddUint32(&baseConnID, 1),
 		collation:    mysql.DefaultCollationID,
-		//alloc:
-		status: connStatusDispatching,
+		alloc:        arena.NewAllocator(32 * 1024),
+		status:       connStatusDispatching,
 	}
 }
 
@@ -45,8 +46,8 @@ type clientConn struct {
 	user         string // user of the client.
 	dbname       string // default database name.
 	//salt         []byte            // random bytes used for authentication.
-	//alloc        arena.Allocator   // an memory allocator for reducing memory allocation.
-	lastCmd string // latest sql query string, currently used for logging error.
+	alloc   arena.Allocator // an memory allocator for reducing memory allocation.
+	lastCmd string          // latest sql query string, currently used for logging error.
 	//ctx          QueryCtx          // an interface to execute sql statements.
 	//attrs        map[string]string // attributes parsed from client handshake response, not used for now.
 	status int32 // dispatching/reading/shutdown/waitshutdown
@@ -95,7 +96,7 @@ func (cc *clientConn) Run() {
 			return
 		}
 
-		//cc.alloc.Reset()
+		cc.alloc.Reset()
 		data, err := cc.readPacket()
 		if err != nil {
 			if terror.ErrorNotEqual(err, io.EOF) {
