@@ -425,7 +425,7 @@ func (cc *clientConn) dispatch(data []byte) error {
 	span := opentracing.StartSpan("server.dispatch")
 	goCtx := opentracing.ContextWithSpan(goctx.Background(), span)
 
-	_, cancelFunc := goctx.WithCancel(goCtx)
+	goCtx1, cancelFunc := goctx.WithCancel(goCtx)
 	cc.mu.Lock()
 	cc.mu.cancelFunc = cancelFunc
 	cc.mu.Unlock()
@@ -457,14 +457,13 @@ func (cc *clientConn) dispatch(data []byte) error {
 		if len(data) > 0 && data[len(data)-1] == 0 {
 			data = data[:len(data)-1]
 		}
-		//TODO return cc.handleQuery(goCtx1, hack.String(data))
-		return cc.writeOK()
+		return cc.handleQuery(goCtx1, hack.String(data))
 	case mysql.ComPing:
 		return cc.writeOK()
 	case mysql.ComInitDB:
-		//TODO if err := cc.useDB(goCtx1, hack.String(data)); err != nil {
-		// 	return errors.Trace(err)
-		// }
+		if err := cc.useDB(goCtx1, hack.String(data)); err != nil {
+			return errors.Trace(err)
+		}
 		return cc.writeOK()
 	// case mysql.ComFieldList:
 	// 	return cc.handleFieldList(hack.String(data))
@@ -576,4 +575,16 @@ func queryStrForLog(query string) string {
 func errStrForLog(err error) string {
 	//TODO do not log stack for duplicated entry error.
 	return errors.ErrorStack(err)
+}
+
+func (cc *clientConn) useDB(goCtx goctx.Context, db string) (err error) {
+	//TODO change DB
+	cc.dbname = db
+	return nil
+}
+
+func (cc *clientConn) handleQuery(goCtx goctx.Context, sql string) (err error) {
+	//TODO
+	err = cc.writeOK()
+	return errors.Trace(err)
 }
