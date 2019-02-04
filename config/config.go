@@ -7,7 +7,7 @@ type Config struct {
 }
 
 var defaultConf = Config{
-	Host: "0.0.0.0",
+	Host: "127.0.0.1",
 	Port: 4444,
 }
 

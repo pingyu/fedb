@@ -4,8 +4,10 @@ import (
 	"fedb/config"
 	"fedb/terror"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/juju/errors"
 	log "github.com/sirupsen/logrus"
@@ -37,12 +39,29 @@ var (
 	//errAccessDenied      = terror.ClassServer.New(codeAccessDenied, mysql.MySQLErrName[mysql.ErrAccessDenied])
 )
 
-// Server object
+// DefaultCapability is the capability of the server when it is created using the default configuration.
+// When server is configured with SSL, the server will have extra capabilities compared to DefaultCapability.
+const defaultCapability = mysql.ClientLongPassword | mysql.ClientLongFlag |
+	mysql.ClientConnectWithDB | mysql.ClientProtocol41 |
+	mysql.ClientTransactions | mysql.ClientSecureConnection | mysql.ClientFoundRows |
+	mysql.ClientMultiStatements | mysql.ClientMultiResults | mysql.ClientLocalFiles |
+	mysql.ClientConnectAtts | mysql.ClientPluginAuth
+
+// Server is the MySQL protocol server
 type Server struct {
-	cfg      *config.Config
+	cfg *config.Config
+	//tlsConfig         *tls.Config
+	//driver            IDriver
 	listener net.Listener
 	rwlock   *sync.RWMutex
-	clients  map[uint32]*clientConn
+	//concurrentLimiter *TokenLimiter
+	clients    map[uint32]*clientConn
+	capability uint32
+
+	// stopListenerCh is used when a critical error occurred, we don't want to exit the process, because there may be
+	// a supervisor automatically restart it, then new client connection will be created, but we can't server it.
+	// So we just stop the listener and store to force clients to chose other TiDB servers.
+	//stopListenerCh chan struct{}
 }
 
 // NewServer create server
@@ -55,7 +74,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		clients: make(map[uint32]*clientConn),
 	}
 
-	//capability
+	s.capability = defaultCapability
+	// tlsConfig
 
 	var err error
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
@@ -67,6 +87,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, errors.Trace(err)
 	}
 
+	rand.Seed(time.Now().UTC().UnixNano())
 	return s, nil
 }
 
@@ -106,6 +127,13 @@ func (s *Server) onConn(c net.Conn) {
 	defer func() {
 		log.Infof("[%d] close connection", conn.connectionID)
 	}()
+
+	if err := conn.handshake(); err != nil {
+		log.Infof("handshake error %s", errors.ErrorStack(err))
+		err = c.Close()
+		terror.Log(errors.Trace(err))
+		return
+	}
 
 	s.rwlock.Lock()
 	s.clients[conn.connectionID] = conn

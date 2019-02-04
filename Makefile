@@ -9,7 +9,7 @@ buildsucc:
 all: server
 
 server:
-	go build -o bin/fedb-server fedb-server/main.go
+	go build -v -o bin/fedb-server fedb-server/main.go
 
 clean:
 	go clean -i ./...

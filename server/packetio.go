@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"fedb/mysql"
+	"fedb/terror"
 	"github.com/juju/errors"
 )
 
@@ -83,4 +84,47 @@ func (p *packetIO) readPacket() ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// writePacket writes data that already have header
+func (p *packetIO) writePacket(data []byte) error {
+	length := len(data) - 4
+
+	for length >= mysql.MaxPayloadLen {
+		data[0] = 0xff
+		data[1] = 0xff
+		data[2] = 0xff
+
+		data[3] = p.sequence
+
+		if n, err := p.bufWriter.Write(data[:4+mysql.MaxPayloadLen]); err != nil {
+			terror.Log(errors.Trace(err))
+			return errors.Trace(mysql.ErrBadConn)
+		} else if n != (4 + mysql.MaxPayloadLen) {
+			return errors.Trace(mysql.ErrBadConn)
+		} else {
+			p.sequence++
+			length -= mysql.MaxPayloadLen
+			data = data[mysql.MaxPayloadLen:]
+		}
+	}
+
+	data[0] = byte(length)
+	data[1] = byte(length >> 8)
+	data[2] = byte(length >> 16)
+	data[3] = p.sequence
+
+	if n, err := p.bufWriter.Write(data); err != nil {
+		terror.Log(errors.Trace(err))
+		return errors.Trace(mysql.ErrBadConn)
+	} else if n != len(data) {
+		return errors.Trace(mysql.ErrBadConn)
+	} else {
+		p.sequence++
+		return nil
+	}
+}
+
+func (p *packetIO) flush() error {
+	return p.bufWriter.Flush()
 }
