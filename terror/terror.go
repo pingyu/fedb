@@ -19,8 +19,8 @@ import (
 	"runtime"
 	"strconv"
 
-	"fedb/mysql"
 	"github.com/juju/errors"
+	"github.com/pingyu/parser/mysql"
 	log "github.com/sirupsen/logrus"
 )
 

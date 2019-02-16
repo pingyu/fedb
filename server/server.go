@@ -1,3 +1,19 @@
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// some code copied from Copyright 2016 PingCAP, Inc.
+// https://github.com/pingcap/tidb/blob/source-code/server/server.go
+//
+
 package server
 
 import (
@@ -12,7 +28,7 @@ import (
 	"github.com/juju/errors"
 	log "github.com/sirupsen/logrus"
 
-	"fedb/mysql"
+	"github.com/pingyu/parser/mysql"
 )
 
 // Server error codes.
@@ -51,7 +67,7 @@ const defaultCapability = mysql.ClientLongPassword | mysql.ClientLongFlag |
 type Server struct {
 	cfg *config.Config
 	//tlsConfig         *tls.Config
-	//driver            IDriver
+	driver   IDriver
 	listener net.Listener
 	rwlock   *sync.RWMutex
 	//concurrentLimiter *TokenLimiter
@@ -65,10 +81,10 @@ type Server struct {
 }
 
 // NewServer create server
-func NewServer(cfg *config.Config) (*Server, error) {
+func NewServer(cfg *config.Config, driver IDriver) (*Server, error) {
 	s := &Server{
-		cfg: cfg,
-		//driver
+		cfg:    cfg,
+		driver: driver,
 		//concurrentLimiter
 		rwlock:  &sync.RWMutex{},
 		clients: make(map[uint32]*clientConn),

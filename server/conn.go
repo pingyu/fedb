@@ -1,10 +1,26 @@
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// some code copied from Copyright 2016 PingCAP, Inc.
+// https://github.com/pingcap/tidb/blob/source-code/server/conn.go
+//
+
 package server
 
 import (
 	"bytes"
 	"encoding/binary"
-	"fedb/mysql"
 	"fmt"
+	"github.com/pingyu/parser/mysql"
 	"io"
 	"net"
 	"runtime"
@@ -46,18 +62,18 @@ type clientConn struct {
 	pkt  *packetIO // a helper to read and write data in packet format.
 	conn net.Conn  // net.Conn
 	//tlsConn      *tls.Conn         // TLS connection, nil if not TLS.
-	server       *Server         // a reference of server instance.
-	capability   uint32          // client capability affects the way server handles client request.
-	connectionID uint32          // atomically allocated by a global variable, unique in process scope.
-	collation    uint8           // collation used by client, may be different from the collation used by database.
-	user         string          // user of the client.
-	dbname       string          // default database name.
-	salt         []byte          // random bytes used for authentication.
-	alloc        arena.Allocator // an memory allocator for reducing memory allocation.
-	lastCmd      string          // latest sql query string, currently used for logging error.
-	//ctx          QueryCtx          // an interface to execute sql statements.
-	attrs  map[string]string // attributes parsed from client handshake response, not used for now.
-	status int32             // dispatching/reading/shutdown/waitshutdown
+	server       *Server           // a reference of server instance.
+	capability   uint32            // client capability affects the way server handles client request.
+	connectionID uint32            // atomically allocated by a global variable, unique in process scope.
+	collation    uint8             // collation used by client, may be different from the collation used by database.
+	user         string            // user of the client.
+	dbname       string            // default database name.
+	salt         []byte            // random bytes used for authentication.
+	alloc        arena.Allocator   // an memory allocator for reducing memory allocation.
+	lastCmd      string            // latest sql query string, currently used for logging error.
+	ctx          QueryCtx          // an interface to execute sql statements.
+	attrs        map[string]string // attributes parsed from client handshake response, not used for now.
+	status       int32             // dispatching/reading/shutdown/waitshutdown
 
 	// mu is used for cancelling the execution of current transaction.
 	mu struct {
@@ -151,10 +167,11 @@ func (cc *clientConn) Run() {
 // during handshake, client and server negotiate compatible features and do authentication.
 // After handshake, client can send sql query to server.
 func (cc *clientConn) handshake() error {
-	if err := cc.writeInitialHandshake(); err != nil {
+	var err error
+	if err = cc.writeInitialHandshake(); err != nil {
 		return errors.Trace(err)
 	}
-	if err := cc.readOptionalSSLRequestAndHandshakeResponse(); err != nil {
+	if err = cc.readOptionalSSLRequestAndHandshakeResponse(); err != nil {
 		err1 := cc.writeError(err)
 		terror.Log(errors.Trace(err1))
 		return errors.Trace(err)
@@ -167,7 +184,12 @@ func (cc *clientConn) handshake() error {
 		data = append(data, 0, 0)
 	}
 
-	err := cc.writePacket(data)
+	cc.ctx, err = cc.server.driver.OpenCtx(uint64(cc.connectionID), cc.capability, cc.collation, cc.dbname, nil)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	err = cc.writePacket(data)
 	cc.pkt.sequence = 0
 	if err != nil {
 		return errors.Trace(err)
@@ -390,7 +412,7 @@ func (cc *clientConn) readOptionalSSLRequestAndHandshakeResponse() error {
 	// 	tlsState := cc.tlsConn.ConnectionState()
 	// 	tlsStatePtr = &tlsState
 	// }
-	// cc.ctx, err = cc.server.driver.OpenCtx(uint64(cc.connectionID), cc.capability, cc.collation, cc.dbname, tlsStatePtr)
+	// cc.ctx, err = cc.server.driver.OpenCtx(uint64(cc.connectionID), cc.capability, cc.collation, cc.dbname, nil)
 	// if err != nil {
 	// 	return errors.Trace(err)
 	// }
@@ -551,9 +573,9 @@ func (cc *clientConn) Close() error {
 
 	err := cc.conn.Close()
 	terror.Log(errors.Trace(err))
-	//TODO if cc.ctx != nil {
-	// 	return cc.ctx.Close()
-	// }
+	if cc.ctx != nil {
+		return cc.ctx.Close()
+	}
 	return nil
 }
 
