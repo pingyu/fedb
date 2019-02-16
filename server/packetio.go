@@ -23,7 +23,7 @@ import (
 
 	"fedb/terror"
 	"github.com/juju/errors"
-	"github.com/pingyu/parser/mysql"
+	"github.com/pingcap/parser/mysql"
 )
 
 const (

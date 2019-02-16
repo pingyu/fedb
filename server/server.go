@@ -28,7 +28,7 @@ import (
 	"github.com/juju/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/pingyu/parser/mysql"
+	"github.com/pingcap/parser/mysql"
 )
 
 // Server error codes.

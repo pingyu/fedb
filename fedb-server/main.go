@@ -25,6 +25,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	_ "github.com/pingcap/tidb/types/parser_driver"
 )
 
 var (

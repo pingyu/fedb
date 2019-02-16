@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/pingyu/parser/mysql"
+	"github.com/pingcap/parser/mysql"
 	"io"
 	"net"
 	"runtime"
@@ -606,7 +606,9 @@ func (cc *clientConn) useDB(goCtx goctx.Context, db string) (err error) {
 }
 
 func (cc *clientConn) handleQuery(goCtx goctx.Context, sql string) (err error) {
+	_, err = cc.ctx.Execute(goCtx, sql)
 	//TODO
+
 	err = cc.writeOK()
 	return errors.Trace(err)
 }

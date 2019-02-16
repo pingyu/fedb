@@ -66,6 +66,7 @@ type FeDBContext struct {
 
 // Execute executes SQL query
 func (ctx *FeDBContext) Execute(goCtx goctx.Context, sql string) (rs []ResultSet, err error) {
+	ctx.session.Execute(goCtx, sql)
 	//TODO
 	return nil, nil
 }

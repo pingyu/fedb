@@ -17,15 +17,24 @@
 package fedb
 
 import (
+	"fmt"
 	"github.com/juju/errors"
+
+	log "github.com/sirupsen/logrus"
+	goctx "golang.org/x/net/context"
 
 	"fedb/sessionctx/variable"
 	"fedb/terror"
-	"github.com/pingyu/parser/charset"
+	"github.com/pingcap/parser"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/charset"
 )
 
 // Session is the session interface
 type Session interface {
+	//Execute(goctx.Context, string) ([]ast.RecordSet, error) // Execute a sql statement.
+	Execute(goctx.Context, string) error // Execute a sql statement.
+
 	SetConnectionID(uint64) Session
 	SetCollation(coID int) error
 	SetClientCapability(uint32) Session
@@ -35,7 +44,7 @@ type Session interface {
 
 type session struct {
 	//TODO: store
-	//TODO: parser
+	parser      *parser.Parser
 	sessionVars *variable.SessionVars
 }
 
@@ -47,7 +56,7 @@ var (
 func CreateSession() (Session, error) {
 	s := &session{
 		//TODO: store
-		//TODO: parser
+		parser:      parser.New(),
 		sessionVars: variable.NewSessionVars(),
 	}
 	return s, nil
@@ -78,4 +87,32 @@ func (s *session) SetCollation(coID int) error {
 func (s *session) Close() {
 	// statsCollector
 	// RoolbackTxn
+}
+
+type visitor struct{}
+
+func (v *visitor) Enter(in ast.Node) (out ast.Node, skipChildren bool) {
+	fmt.Printf("Enter %T\n", in)
+	return in, false
+}
+
+func (v *visitor) Leave(in ast.Node) (out ast.Node, ok bool) {
+	fmt.Printf("Leave: %T\n", in)
+	return in, true
+}
+
+// Execute a sql statement.
+func (s *session) Execute(goCtx goctx.Context, sql string) error {
+	log.Infof("sql: %v", sql)
+	stmtNodes, err := s.parser.Parse(sql, "", "")
+	if err != nil {
+		return errors.Trace(err)
+	}
+	for _, stmtNode := range stmtNodes {
+		v := visitor{}
+		stmtNode.Accept(&v)
+	}
+	//TODO
+
+	return nil
 }

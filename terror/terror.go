@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"github.com/juju/errors"
-	"github.com/pingyu/parser/mysql"
+	"github.com/pingcap/parser/mysql"
 	log "github.com/sirupsen/logrus"
 )
 
