@@ -18,11 +18,12 @@ package server
 
 import (
 	"crypto/tls"
+	"fedb/util/sqlexec"
 
-	"github.com/juju/errors"
+	"github.com/pingcap/errors"
 	goctx "golang.org/x/net/context"
 
-	"fedb/fedb"
+	"fedb/session"
 )
 
 // FeDBDriver implements IDriver.
@@ -40,7 +41,7 @@ func NewFeDBDriver() *FeDBDriver {
 func (drv *FeDBDriver) OpenCtx(connID uint64, capability uint32, collation uint8, dbname string, tlsState *tls.ConnectionState) (QueryCtx, error) {
 	//TODO: ignore collation, tlsState
 
-	session, err := fedb.CreateSession()
+	session, err := session.CreateSession()
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -60,15 +61,34 @@ func (drv *FeDBDriver) OpenCtx(connID uint64, capability uint32, collation uint8
 
 // FeDBContext implements QueryCtx.
 type FeDBContext struct {
-	session   fedb.Session
+	session   session.Session
 	currentDB string
+}
+
+type fedbResultSet struct {
+	recordSet sqlexec.RecordSet
+	//columns   []*ColumnInfo
+	//rows      []chunk.Row
+	//closed    bool
 }
 
 // Execute executes SQL query
 func (ctx *FeDBContext) Execute(goCtx goctx.Context, sql string) (rs []ResultSet, err error) {
-	ctx.session.Execute(goCtx, sql)
-	//TODO
-	return nil, nil
+	rsList, err := ctx.session.Execute(goCtx, sql)
+	if err != nil {
+		return nil, err
+	}
+	if len(rsList) == 0 {
+		return nil, nil
+	}
+
+	rs = make([]ResultSet, len(rsList))
+	for i := 0; i < len(rsList); i++ {
+		rs[i] = &fedbResultSet{
+			recordSet: rsList[i],
+		}
+	}
+	return rs, nil
 }
 
 // Close closes context

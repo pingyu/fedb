@@ -21,9 +21,9 @@ import (
 	"io"
 	"net"
 
-	"fedb/terror"
-	"github.com/juju/errors"
+	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/mysql"
+	"github.com/pingcap/parser/terror"
 )
 
 const (
@@ -61,7 +61,7 @@ func (p *packetIO) readOnePacket() ([]byte, error) {
 
 	sequence := header[3]
 	if sequence != p.sequence {
-		return nil, errInvalidSequence.Gen("invalid sequence %d != %d", sequence, p.sequence)
+		return nil, errInvalidSequence.GenWithStack("invalid sequence %d != %d", sequence, p.sequence)
 	}
 
 	p.sequence++

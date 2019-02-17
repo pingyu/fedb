@@ -14,26 +14,28 @@
 // https://github.com/pingcap/tidb/blob/source-code/session.go
 //
 
-package fedb
+package session
 
 import (
 	"fmt"
-	"github.com/juju/errors"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/opentracing/opentracing-go"
 	goctx "golang.org/x/net/context"
 
-	"fedb/sessionctx/variable"
-	"fedb/terror"
+	"github.com/pingcap/errors"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/charset"
+	"github.com/pingcap/parser/terror"
+	log "github.com/sirupsen/logrus"
+
+	"fedb/sessionctx/variable"
+	"fedb/util/sqlexec"
 )
 
 // Session is the session interface
 type Session interface {
-	//Execute(goctx.Context, string) ([]ast.RecordSet, error) // Execute a sql statement.
-	Execute(goctx.Context, string) error // Execute a sql statement.
+	Execute(goctx.Context, string) ([]sqlexec.RecordSet, error) // Execute a sql statement.
 
 	SetConnectionID(uint64) Session
 	SetCollation(coID int) error
@@ -102,17 +104,31 @@ func (v *visitor) Leave(in ast.Node) (out ast.Node, ok bool) {
 }
 
 // Execute a sql statement.
-func (s *session) Execute(goCtx goctx.Context, sql string) error {
+func (s *session) Execute(ctx goctx.Context, sql string) (recordSets []sqlexec.RecordSet, err error) {
 	log.Infof("sql: %v", sql)
-	stmtNodes, err := s.parser.Parse(sql, "", "")
-	if err != nil {
-		return errors.Trace(err)
+
+	if span := opentracing.SpanFromContext(ctx); span != nil && span.Tracer() != nil {
+		span1 := span.Tracer().StartSpan("session.Execute", opentracing.ChildOf(span.Context()))
+		defer span1.Finish()
 	}
+	recordSets, err = s.execute(ctx, sql)
+	return
+}
+
+func (s *session) execute(ctx goctx.Context, sql string) (recordSets []sqlexec.RecordSet, err error) {
+	charsetInfo, collation := s.sessionVars.GetCharsetInfo()
+
+	stmtNodes, err := s.parser.Parse(sql, charsetInfo, collation)
+	if err != nil {
+		return nil, errors.AddStack(err)
+	}
+
 	for _, stmtNode := range stmtNodes {
 		v := visitor{}
 		stmtNode.Accept(&v)
 	}
 	//TODO
+	//compiler
 
-	return nil
+	return nil, nil
 }

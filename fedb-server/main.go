@@ -17,14 +17,16 @@
 package main
 
 import (
-	"fedb/config"
-	"fedb/server"
-	"fedb/terror"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/pingcap/parser/terror"
+	log "github.com/sirupsen/logrus"
+
+	"fedb/config"
+	"fedb/server"
 
 	_ "github.com/pingcap/tidb/types/parser_driver"
 )

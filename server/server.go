@@ -17,18 +17,18 @@
 package server
 
 import (
-	"fedb/config"
-	"fedb/terror"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pingcap/errors"
+	"github.com/pingcap/parser/mysql"
+	"github.com/pingcap/parser/terror"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/pingcap/parser/mysql"
+	"fedb/config"
 )
 
 // Server error codes.
