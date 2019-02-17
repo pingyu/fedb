@@ -41,7 +41,7 @@ import (
 	//"strconv"
 	//"time"
 	//"fedb/mysql"
-	//"github.com/juju/errors"
+	//"github.com/pingcap/errors"
 	//"github.com/pingcap/tidb/types"
 	//"fedb/util/hack"
 )
