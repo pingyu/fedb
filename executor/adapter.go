@@ -21,6 +21,7 @@ import (
 
 	"github.com/pingcap/parser/ast"
 
+	plannercore "fedb/planner/core"
 	"fedb/sessionctx"
 )
 

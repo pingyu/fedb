@@ -20,7 +20,10 @@ import (
 	"context"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/pingcap/errors"
+	"github.com/pingcap/parser/ast"
 
+	plannercore "fedb/planner/core"
 	"fedb/sessionctx"
 )
 
@@ -30,7 +33,7 @@ type Compiler struct {
 }
 
 // Compile an ast.StmtNode to a physical plan.
-func (c *Complier) Compile(ctx context.Context, stmtNode ast.StmtNode) (*ExecStmt, error) {
+func (c *Compiler) Compile(ctx context.Context, stmtNode ast.StmtNode) (*ExecStmt, error) {
 	if span := opentracing.SpanFromContext(ctx); span != nil && span.Tracer() != nil {
 		span1 := span.Tracer().StartSpan("executor.Compile", opentracing.ChildOf(span.Context()))
 		defer span1.Finish()
@@ -39,12 +42,15 @@ func (c *Complier) Compile(ctx context.Context, stmtNode ast.StmtNode) (*ExecStm
 	//TODO: infoSchema
 
 	//Preprocess
+	if err := plannercore.Preprocess(c.Ctx, stmtNode); err != nil {
+		return nil, errors.Trace(err)
+	}
 
 	//Optimize
 
 	return &ExecStmt{
 		//InfoSchema
-		Plan: finalPlan,
+		//Plan: finalPlan,
 		//Expensive
 		//Cacheable
 		Text:     stmtNode.Text(),

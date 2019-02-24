@@ -16,6 +16,65 @@
 
 package sessionctx
 
+import (
+	"fedb/sessionctx/variable"
+)
+
 // Context is an interface for transaction and executive args environment.
 type Context interface {
+	// NewTxn creates a new transaction for further execution.
+	// If old transaction is valid, it is committed first.
+	// It's used in BEGIN statement and DDL statements to commit old transaction.
+	//NewTxn(context.Context) error
+
+	// Txn returns the current transaction which is created before executing a statement.
+	// The returned kv.Transaction is not nil, but it maybe pending or invalid.
+	// If the active parameter is true, call this function will wait for the pending txn
+	// to become valid.
+	//Txn(active bool) (kv.Transaction, error)
+
+	// GetClient gets a kv.Client.
+	//GetClient() kv.Client
+
+	// SetValue saves a value associated with this context for key.
+	//SetValue(key fmt.Stringer, value interface{})
+
+	// Value returns the value associated with this context for key.
+	//Value(key fmt.Stringer) interface{}
+
+	// ClearValue clears the value associated with this context for key.
+	//ClearValue(key fmt.Stringer)
+
+	GetSessionVars() *variable.SessionVars
+
+	//GetSessionManager() util.SessionManager
+
+	// RefreshTxnCtx commits old transaction without retry,
+	// and creates a new transaction.
+	// now just for load data and batch insert.
+	//RefreshTxnCtx(context.Context) error
+
+	// InitTxnWithStartTS initializes a transaction with startTS.
+	// It should be called right before we builds an executor.
+	//InitTxnWithStartTS(startTS uint64) error
+
+	// GetStore returns the store of session.
+	//GetStore() kv.Storage
+
+	// PreparedPlanCache returns the cache of the physical plan
+	//PreparedPlanCache() *kvcache.SimpleLRUCache
+
+	// StoreQueryFeedback stores the query feedback.
+	//StoreQueryFeedback(feedback interface{})
+
+	// StmtCommit flush all changes by the statement to the underlying transaction.
+	//StmtCommit() error
+	// StmtRollback provides statement level rollback.
+	//StmtRollback()
+	// StmtGetMutation gets the binlog mutation for current statement.
+	//StmtGetMutation(int64) *binlog.TableMutation
+	// StmtAddDirtyTableOP adds the dirty table operation for current statement.
+	//StmtAddDirtyTableOP(op int, tid int64, handle int64, row []types.Datum)
+	// DDLOwnerChecker returns owner.DDLOwnerChecker.
+	//DDLOwnerChecker() owner.DDLOwnerChecker
 }

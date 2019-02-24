@@ -18,7 +18,6 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -30,6 +29,7 @@ import (
 	"github.com/pingcap/parser/terror"
 	log "github.com/sirupsen/logrus"
 
+	"fedb/executor"
 	"fedb/kv"
 	"fedb/sessionctx"
 	"fedb/sessionctx/variable"
@@ -130,6 +130,11 @@ func (s *session) SetCollation(coID int) error {
 	return nil
 }
 
+// GetSessionVars implements sessionctx.Context.GetSessionVars()
+func (s *session) GetSessionVars() *variable.SessionVars {
+	return s.sessionVars
+}
+
 func (s *session) Close() {
 	// statsCollector
 	// RoolbackTxn
@@ -138,12 +143,12 @@ func (s *session) Close() {
 type visitor struct{}
 
 func (v *visitor) Enter(in ast.Node) (out ast.Node, skipChildren bool) {
-	fmt.Printf("Enter %T\n", in)
+	log.Infof("Enter (%T)%v\n", in, in)
 	return in, false
 }
 
 func (v *visitor) Leave(in ast.Node) (out ast.Node, ok bool) {
-	fmt.Printf("Leave: %T\n", in)
+	log.Infof("Leave: (%T)%v\n", in, in)
 	return in, true
 }
 
@@ -165,18 +170,34 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []sqlexec
 
 	charsetInfo, collation := s.sessionVars.GetCharsetInfo()
 
+	// Step1: Compile query string to AST
+	//startTS := time.Now()
 	stmtNodes, err := s.parser.Parse(sql, charsetInfo, collation)
 	if err != nil {
 		// rollback
 		return nil, util.SyntaxError(err)
 	}
 
+	//DEBUG
 	for _, stmtNode := range stmtNodes {
 		v := visitor{}
 		stmtNode.Accept(&v)
 	}
-	//TODO
-	//compiler
+
+	compiler := executor.Compiler{Ctx: s}
+	for _, stmtNode := range stmtNodes {
+		s.PrepareTxnCtx(ctx)
+
+		// Step2: Transform AST to physical plan (in executor.ExecStmt)
+		//startTS = time.Now()
+		_, err := compiler.Compile(ctx, stmtNode)
+		if err != nil {
+			// rollbackOnError
+			return nil, errors.Trace(err)
+		}
+
+		// Step3: Execute physical plan.
+	}
 
 	return nil, nil
 }
