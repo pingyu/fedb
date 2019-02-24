@@ -18,10 +18,10 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"github.com/opentracing/opentracing-go"
-	goctx "golang.org/x/net/context"
 	"io"
 	"net"
 	"runtime"
@@ -77,7 +77,7 @@ type clientConn struct {
 	// mu is used for cancelling the execution of current transaction.
 	mu struct {
 		sync.RWMutex
-		cancelFunc goctx.CancelFunc
+		cancelFunc context.CancelFunc
 	}
 }
 
@@ -444,9 +444,9 @@ func (cc *clientConn) readOptionalSSLRequestAndHandshakeResponse() error {
 // The most frequently used command is ComQuery.
 func (cc *clientConn) dispatch(data []byte) error {
 	span := opentracing.StartSpan("server.dispatch")
-	goCtx := opentracing.ContextWithSpan(goctx.Background(), span)
+	ctx := opentracing.ContextWithSpan(context.Background(), span)
 
-	goCtx1, cancelFunc := goctx.WithCancel(goCtx)
+	ctx, cancelFunc := context.WithCancel(ctx)
 	cc.mu.Lock()
 	cc.mu.cancelFunc = cancelFunc
 	cc.mu.Unlock()
@@ -478,11 +478,11 @@ func (cc *clientConn) dispatch(data []byte) error {
 		if len(data) > 0 && data[len(data)-1] == 0 {
 			data = data[:len(data)-1]
 		}
-		return cc.handleQuery(goCtx1, hack.String(data))
+		return cc.handleQuery(ctx, hack.String(data))
 	case mysql.ComPing:
 		return cc.writeOK()
 	case mysql.ComInitDB:
-		if err := cc.useDB(goCtx1, hack.String(data)); err != nil {
+		if err := cc.useDB(ctx, hack.String(data)); err != nil {
 			return errors.Trace(err)
 		}
 		return cc.writeOK()
@@ -598,15 +598,19 @@ func errStrForLog(err error) string {
 	return errors.ErrorStack(err)
 }
 
-func (cc *clientConn) useDB(goCtx goctx.Context, db string) (err error) {
+func (cc *clientConn) useDB(ctx context.Context, db string) (err error) {
 	//TODO change DB
 	cc.dbname = db
 	return nil
 }
 
-func (cc *clientConn) handleQuery(goCtx goctx.Context, sql string) (err error) {
-	_, err = cc.ctx.Execute(goCtx, sql)
-	//TODO
+func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
+	_, err = cc.ctx.Execute(ctx, sql)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	//TODO: writeResultSet
 
 	err = cc.writeOK()
 	return errors.Trace(err)

@@ -14,9 +14,8 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
-
-	goctx "golang.org/x/net/context"
 )
 
 // IDriver opens IContext.
@@ -55,7 +54,7 @@ type QueryCtx interface {
 	//CurrentDB() string
 
 	// Execute executes a SQL statement.
-	Execute(goCtx goctx.Context, sql string) ([]ResultSet, error)
+	Execute(ctx context.Context, sql string) ([]ResultSet, error)
 
 	// SetClientCapability sets client capability flags
 	//SetClientCapability(uint32)

@@ -18,13 +18,17 @@ package config
 
 // Config object
 type Config struct {
-	Host string
-	Port int
+	Host  string
+	Port  int
+	Store string
+	Path  string
 }
 
 var defaultConf = Config{
-	Host: "127.0.0.1",
-	Port: 4444,
+	Host:  "127.0.0.1",
+	Port:  4444,
+	Store: "local",
+	Path:  "/tmp/fedb",
 }
 
 var globalConf = defaultConf

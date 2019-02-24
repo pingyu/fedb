@@ -24,7 +24,7 @@ require (
 	github.com/opentracing/opentracing-go v1.0.2
 	github.com/pingcap/check v0.0.0-20190102082844-67f458068fc8 // indirect
 	github.com/pingcap/errors v0.11.0
-	github.com/pingcap/parser v0.0.0-20181120072820-10951bcfca73
+	github.com/pingcap/parser v0.0.0-20181113072426-4a9a1b13b591
 	github.com/pingcap/tidb v0.0.0-20181120082053-012cb6da9443
 	github.com/pingcap/tipb v0.0.0-20190107072121-abbec73437b7 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
@@ -42,7 +42,7 @@ require (
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1 // indirect
-	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3
+	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )

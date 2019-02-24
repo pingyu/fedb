@@ -17,23 +17,26 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"fedb/util/sqlexec"
 
 	"github.com/pingcap/errors"
-	goctx "golang.org/x/net/context"
 
+	"fedb/kv"
 	"fedb/session"
 )
 
 // FeDBDriver implements IDriver.
 type FeDBDriver struct {
-	//store
+	store kv.Storage
 }
 
 // NewFeDBDriver creates a new FeDBDriver.
-func NewFeDBDriver() *FeDBDriver {
-	driver := &FeDBDriver{}
+func NewFeDBDriver(store kv.Storage) *FeDBDriver {
+	driver := &FeDBDriver{
+		store: store,
+	}
 	return driver
 }
 
@@ -41,7 +44,7 @@ func NewFeDBDriver() *FeDBDriver {
 func (drv *FeDBDriver) OpenCtx(connID uint64, capability uint32, collation uint8, dbname string, tlsState *tls.ConnectionState) (QueryCtx, error) {
 	//TODO: ignore collation, tlsState
 
-	session, err := session.CreateSession()
+	session, err := session.CreateSession(drv.store)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -52,11 +55,11 @@ func (drv *FeDBDriver) OpenCtx(connID uint64, capability uint32, collation uint8
 		return nil, errors.Trace(err)
 	}
 
-	ctx := &FeDBContext{
+	fc := &FeDBContext{
 		session:   session,
 		currentDB: dbname,
 	}
-	return ctx, nil
+	return fc, nil
 }
 
 // FeDBContext implements QueryCtx.
@@ -73,8 +76,8 @@ type fedbResultSet struct {
 }
 
 // Execute executes SQL query
-func (ctx *FeDBContext) Execute(goCtx goctx.Context, sql string) (rs []ResultSet, err error) {
-	rsList, err := ctx.session.Execute(goCtx, sql)
+func (fc *FeDBContext) Execute(ctx context.Context, sql string) (rs []ResultSet, err error) {
+	rsList, err := fc.session.Execute(ctx, sql)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +95,7 @@ func (ctx *FeDBContext) Execute(goCtx goctx.Context, sql string) (rs []ResultSet
 }
 
 // Close closes context
-func (ctx *FeDBContext) Close() error {
-	ctx.session.Close()
+func (fc *FeDBContext) Close() error {
+	fc.session.Close()
 	return nil
 }

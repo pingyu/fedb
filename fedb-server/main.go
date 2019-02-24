@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -26,13 +27,28 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"fedb/config"
+	"fedb/kv"
 	"fedb/server"
+	kvstore "fedb/store"
+	"fedb/store/localstore"
 
 	_ "github.com/pingcap/tidb/types/parser_driver"
 )
 
+// Flag Names
+const (
+	nmStore     = "store"
+	nmStorePath = "path"
+)
+
+var (
+	store     = flag.String(nmStore, "local", "registered store name, [local, cluster]")
+	storePath = flag.String(nmStorePath, "/tmp/fedb", "fedb storage path")
+)
+
 var (
 	cfg      *config.Config
+	storage  kv.Storage
 	svr      *server.Server
 	graceful bool
 )
@@ -40,7 +56,14 @@ var (
 func main() {
 	fmt.Println("Hello, FeDB !!")
 
+	flag.Parse()
+
+	registerStores()
+
 	loadConfig()
+	overrideConfig()
+
+	createStore()
 	createServer()
 	setupSignalHandler()
 	runServer()
@@ -52,9 +75,36 @@ func loadConfig() {
 	cfg = config.GetGlobalConfig()
 }
 
+func overrideConfig() {
+	actualFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		actualFlags[f.Name] = true
+	})
+	if actualFlags[nmStore] {
+		cfg.Store = *store
+	}
+	if actualFlags[nmStorePath] {
+		cfg.Path = *storePath
+	}
+}
+
+func registerStores() {
+	err := kvstore.Register("local", localstore.Driver{})
+	terror.MustNil(err)
+}
+
+func createStore() {
+	fullPath := fmt.Sprintf("%s://%s", cfg.Store, cfg.Path)
+	var err error
+	storage, err = kvstore.New(fullPath)
+	terror.MustNil(err)
+
+	//BootstrapSession(storage), getStoreBootstrapVersion
+}
+
 func createServer() {
 	var driver server.IDriver
-	driver = server.NewFeDBDriver()
+	driver = server.NewFeDBDriver(storage)
 	var err error
 	svr, err = server.NewServer(cfg, driver)
 	terror.MustNil(err)

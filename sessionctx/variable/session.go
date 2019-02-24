@@ -16,9 +16,16 @@
 
 package variable
 
+import (
+	"time"
+)
+
 // SessionVars is session variables
 type SessionVars struct {
 	systems map[string]string // systems variables
+
+	// Should be reset on transaction finished.
+	TxnCtx *TransactionContext
 
 	// Following variables are special for current session.
 	Status uint16
@@ -32,6 +39,7 @@ type SessionVars struct {
 func NewSessionVars() *SessionVars {
 	return &SessionVars{
 		systems: make(map[string]string),
+		TxnCtx:  &TransactionContext{},
 	}
 }
 
@@ -60,4 +68,21 @@ func (s *SessionVars) GetCharsetInfo() (charset, collation string) {
 	charset = s.systems[CharacterSetConnection]
 	collation = s.systems[CollationConnection]
 	return
+}
+
+// TransactionContext is used to store variables that has transaction scope.
+type TransactionContext struct {
+	//ForUpdate     bool
+	//DirtyDB       interface{}
+	//Binlog        interface{}
+	//InfoSchema    interface{}
+	//History       interface{}
+	//SchemaVersion int64
+	StartTS uint64
+	//Shard         *int64
+	//TableDeltaMap map[int64]TableDelta
+
+	// For metrics.
+	CreateTime time.Time
+	//StatementCount int
 }
